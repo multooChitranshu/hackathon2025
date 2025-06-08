@@ -1,0 +1,6 @@
+streamlit
+pandas
+plotly
+langchain
+langchain_community
+neo4j
