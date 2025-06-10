@@ -4,6 +4,12 @@ import plotly.express as px
 import plotly.graph_objects as go
 import os
 from langchain_community.graphs import Neo4jGraph
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+logger.info("Application starting...")
+
 
 st.set_page_config(
     page_title="RM Intelligence Dashboard",
@@ -63,13 +69,59 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# def fetch_client_data():
+#     try:
+#         NEO4J_URI="neo4j+s://e14248e5.databases.neo4j.io"
+#         NEO4J_USER="neo4j"
+#         NEO4J_PASSWORD="j_OfoqhHCpE1vq-qFEHfcyI0WkjIKcGktFmqGtnp0Oc"
+#         kg = Neo4jGraph(url=NEO4J_URI, username=NEO4J_USER, password=NEO4J_PASSWORD)
+#         cypher="""
+#         MATCH (c:Customer)-[:EARNS]->(i:Income),
+#             (c)-[:HAS_CREDIT_REPORT]->(cr:CreditReport),
+#             (c)-[:HAS_EXPENSE]->(exp:Expense),
+#             (c)-[:HAS_GOAL]->(s:SavingsGoal),
+#             (c)-[:OWES_DEBT]->(d:Debt)
+#         RETURN c.name as name, c.age as age, i.amount_monthly as income, exp.amount_monthly as monthly_expenses, 
+#         cr.score as credit_score, s.current_saved as savings, d.remaining_balance as debt, i.employer_business_name as employment
+#         """
+        
+#         results=kg.query(cypher)
+#         # print(results)
+#         client_data={}
+#         for record in results:
+#             name=record["name"]
+#             client_data[name] = {
+#                 "income": record["income"],
+#                 "monthly_expenses": record["monthly_expenses"],
+#                 "savings": record["savings"],
+#                 "credit_score":record["credit_score"],
+#                 "employment": record["employment"],
+#                 "age": record["age"],
+#                 "debt": record["debt"],
+#             }
+#         # print(client_data)
+#         return client_data
+#     except Exception as e:
+#         print(f"\nERROR: Failed to connect to Neo4j using langchain_neo4j.Neo4jGraph.")
+#         print(f"Details: {e}")
+#         return False
+
 def fetch_client_data():
+    """Fetch client data with error handling"""
     try:
-        NEO4J_URI="neo4j+s://e14248e5.databases.neo4j.io"
-        NEO4J_USER="neo4j"
-        NEO4J_PASSWORD="j_OfoqhHCpE1vq-qFEHfcyI0WkjIKcGktFmqGtnp0Oc"
-        kg = Neo4jGraph(url=NEO4J_URI, username=NEO4J_USER, password=NEO4J_PASSWORD)
-        cypher="""
+        NEO4J_URI = os.getenv("NEO4J_URI", "neo4j+s://e14248e5.databases.neo4j.io")
+        NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
+        NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "j_OfoqhHCpE1vq-qFEHfcyI0WkjIKcGktFmqGtnp0Oc")
+        
+        # Add connection timeout
+        kg = Neo4jGraph(
+            url=NEO4J_URI, 
+            username=NEO4J_USER, 
+            password=NEO4J_PASSWORD,
+            timeout=10  # 10 second timeout
+        )
+        
+        cypher = """
         MATCH (c:Customer)-[:EARNS]->(i:Income),
             (c)-[:HAS_CREDIT_REPORT]->(cr:CreditReport),
             (c)-[:HAS_EXPENSE]->(exp:Expense),
@@ -79,28 +131,50 @@ def fetch_client_data():
         cr.score as credit_score, s.current_saved as savings, d.remaining_balance as debt, i.employer_business_name as employment
         """
         
-        results=kg.query(cypher)
-        # print(results)
-        client_data={}
+        results = kg.query(cypher)
+        client_data = {}
         for record in results:
-            name=record["name"]
+            name = record["name"]
             client_data[name] = {
                 "income": record["income"],
                 "monthly_expenses": record["monthly_expenses"],
                 "savings": record["savings"],
-                "credit_score":record["credit_score"],
+                "credit_score": record["credit_score"],
                 "employment": record["employment"],
                 "age": record["age"],
                 "debt": record["debt"],
             }
-        # print(client_data)
-        return client_data
+        
+        return client_data, None
+        
     except Exception as e:
-        print(f"\nERROR: Failed to connect to Neo4j using langchain_neo4j.Neo4jGraph.")
-        print(f"Details: {e}")
-        return False
+        logger.info(f"ERROR: Failed to connect to Neo4j: {e}")
+        print(f"ERROR: Failed to connect to Neo4j: {e}")
+        # Return mock data when Neo4j fails
+        mock_data = {
+            "Sarah Johnson": {
+                "income": 75000,
+                "monthly_expenses": 4500,
+                "savings": 25000,
+                "credit_score": 750,
+                "employment": "Tech Corp",
+                "age": 32,
+                "debt": 15000,
+            },
+            "John Doe": {
+                "income": 65000,
+                "monthly_expenses": 3800,
+                "savings": 18000,
+                "credit_score": 720,
+                "employment": "Finance Ltd",
+                "age": 28,
+                "debt": 12000,
+            }
+        }
+        return mock_data, str(e)
 
-CLIENT_DATA=fetch_client_data()
+CLIENT_DATA, error=fetch_client_data()
+logger.info(f"Client data loaded: {list(CLIENT_DATA.keys())}")
 
 # Function to analyze query and determine metrics
 def analyze_query(query_text):

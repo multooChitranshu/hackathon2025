@@ -4,3 +4,4 @@ plotly
 langchain
 langchain_community
 neo4j
+boto3
